@@ -1,0 +1,41 @@
+version: "3.9"
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: backend:v1
+    ports:
+      - "5000:5000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    depends_on:
+      - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: frontend:v1
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command:
+      - sh
+      - -c
+      - |
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+        else
+          redis-server --appendonly yes
+        fi
