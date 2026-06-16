@@ -1,0 +1,111 @@
+name: CCE CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "k8s/**"
+      - "requirements.txt"
+      - "Dockerfile.backend"
+      - "Dockerfile.frontend"
+      - ".github/workflows/cce-cicd.yml"
+  workflow_dispatch:
+
+env:
+  SWR_REGISTRY: swr.cn-north-4.myhuaweicloud.com
+  SWR_NAMESPACE: swjtu2551
+  K8S_NAMESPACE: default
+  BACKEND_DEPLOYMENT: backend
+  FRONTEND_DEPLOYMENT: frontend
+
+jobs:
+  build-push-deploy:
+    name: Build, Push and Deploy to CCE
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Generate image tag
+        id: vars
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::7}"
+          echo "image_tag=ci-${GITHUB_RUN_NUMBER}-${short_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Huawei Cloud SWR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.SWR_REGISTRY }}
+          username: ${{ secrets.SWR_USERNAME }}
+          password: ${{ secrets.SWR_PASSWORD }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.backend
+          push: true
+          tags: |
+            ${{ env.SWR_REGISTRY }}/${{ env.SWR_NAMESPACE }}/backend:${{ steps.vars.outputs.image_tag }}
+            ${{ env.SWR_REGISTRY }}/${{ env.SWR_NAMESPACE }}/backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ env.SWR_REGISTRY }}/${{ env.SWR_NAMESPACE }}/frontend:${{ steps.vars.outputs.image_tag }}
+            ${{ env.SWR_REGISTRY }}/${{ env.SWR_NAMESPACE }}/frontend:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.35.0
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl config current-context
+          kubectl get nodes
+
+      - name: Update CCE deployments
+        shell: bash
+        run: |
+          image_tag="${{ steps.vars.outputs.image_tag }}"
+          backend_image="${SWR_REGISTRY}/${SWR_NAMESPACE}/backend:${image_tag}"
+          frontend_image="${SWR_REGISTRY}/${SWR_NAMESPACE}/frontend:${image_tag}"
+
+          kubectl -n "$K8S_NAMESPACE" set image "deployment/${BACKEND_DEPLOYMENT}" backend="$backend_image"
+          kubectl -n "$K8S_NAMESPACE" set image "deployment/${FRONTEND_DEPLOYMENT}" frontend="$frontend_image"
+
+          kubectl -n "$K8S_NAMESPACE" annotate deployment "$BACKEND_DEPLOYMENT" "kubernetes.io/change-cause=GitHub Actions ${GITHUB_SHA}" --overwrite
+          kubectl -n "$K8S_NAMESPACE" annotate deployment "$FRONTEND_DEPLOYMENT" "kubernetes.io/change-cause=GitHub Actions ${GITHUB_SHA}" --overwrite
+
+          kubectl -n "$K8S_NAMESPACE" rollout status "deployment/${BACKEND_DEPLOYMENT}" --timeout=180s
+          kubectl -n "$K8S_NAMESPACE" rollout status "deployment/${FRONTEND_DEPLOYMENT}" --timeout=180s
+
+      - name: Show deployed image tags
+        shell: bash
+        run: |
+          kubectl -n "$K8S_NAMESPACE" get deployment "$BACKEND_DEPLOYMENT" "$FRONTEND_DEPLOYMENT" \
+            -o custom-columns='NAME:.metadata.name,IMAGE:.spec.template.spec.containers[*].image,READY:.status.readyReplicas,UPDATED:.status.updatedReplicas'
