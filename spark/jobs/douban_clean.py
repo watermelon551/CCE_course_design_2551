@@ -17,7 +17,7 @@ from pyspark.sql.types import DoubleType, FloatType, IntegerType, LongType, Stri
 spark = SparkSession.builder.appName("DoubanMovieCleaning").getOrCreate()
 spark.sparkContext.setLogLevel("WARN")
 
-input_path = os.getenv("DOUBAN_INPUT", "local:///opt/spark/work/douban_movies.csv")
+input_path = os.getenv("DOUBAN_INPUT", "file:///opt/spark/work/douban_movies.csv")
 output_path = os.getenv("DOUBAN_OUTPUT", "")
 
 print("========== A-1 Douban Movie Data Cleaning ==========")
