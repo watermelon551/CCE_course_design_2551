@@ -71,6 +71,7 @@ q2 = spark.sql(
       collect_count
     FROM movies
     ORDER BY rating_score DESC, rating_count DESC
+        HAVING rating_count >= 5000
     LIMIT 10
     """
 )
@@ -100,6 +101,6 @@ q4 = (
     .filter(col("rank_in_genre") <= 3)
     .orderBy("genre", "rank_in_genre")
 )
-q4.show(60, truncate=26)
+q4.show(40, truncate=26)
 
 spark.stop()
