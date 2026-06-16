@@ -1,0 +1,128 @@
+global:
+  imagePullSecrets:
+    - name: swr-secret
+
+alertmanager:
+  enabled: false
+
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: false
+  adminPassword: "Admin@123"
+  service:
+    type: ClusterIP
+  sidecar:
+    dashboards:
+      enabled: false
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: monitoring
+      provider:
+        allowUiUpdates: true
+    datasources:
+      enabled: false
+  additionalDataSources:
+    - name: Prometheus
+      type: prometheus
+      uid: prometheus
+      access: proxy
+      url: http://monitoring-kube-prometheus-prometheus:9090
+      isDefault: true
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          uid: prometheus
+          access: proxy
+          url: http://monitoring-kube-prometheus-prometheus:9090
+          isDefault: true
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboardsConfigMaps:
+    default: grafana-course-design-dashboard
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+prometheus:
+  enabled: true
+  prometheusSpec:
+    image:
+      registry: swr.cn-north-4.myhuaweicloud.com
+      repository: swjtu2551/prometheus
+      tag: v3.12.0-distroless
+    imagePullSecrets:
+      - name: swr-secret
+    retention: 6h
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+prometheusOperator:
+  image:
+    registry: swr.cn-north-4.myhuaweicloud.com
+    repository: swjtu2551/prometheus-operator
+    tag: v0.91.0
+  prometheusConfigReloader:
+    image:
+      registry: swr.cn-north-4.myhuaweicloud.com
+      repository: swjtu2551/prometheus-config-reloader
+      tag: v0.91.0
+  tls:
+    enabled: false
+  admissionWebhooks:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+nodeExporter:
+  enabled: true
+
+prometheus-node-exporter:
+  image:
+    registry: docker.io
+    repository: prom/node-exporter
+    tag: v1.11.1
+    distroless: false
+
+kube-state-metrics:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: false
+
+kubeControllerManager:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
