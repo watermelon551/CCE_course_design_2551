@@ -1,0 +1,12 @@
+FROM swr.cn-north-4.myhuaweicloud.com/swjtu2551/pyspark:3.4
+
+USER root
+
+WORKDIR /opt/spark/work
+
+COPY douban_movies.csv /opt/spark/work/douban_movies.csv
+COPY ["Cloud Computing/spark/jobs/douban_clean.py", "/opt/spark/work/douban_clean.py"]
+
+RUN chown -R 185:0 /opt/spark/work && chmod -R 775 /opt/spark/work
+
+USER 185
