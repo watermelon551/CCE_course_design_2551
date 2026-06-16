@@ -6,6 +6,7 @@ WORKDIR /opt/spark/work
 
 COPY douban_movies.csv /opt/spark/work/douban_movies.csv
 COPY ["Cloud Computing/spark/jobs/douban_clean.py", "/opt/spark/work/douban_clean.py"]
+COPY ["Cloud Computing/spark/jobs/douban_sql.py", "/opt/spark/work/douban_sql.py"]
 
 RUN chown -R 185:0 /opt/spark/work && chmod -R 775 /opt/spark/work
 
