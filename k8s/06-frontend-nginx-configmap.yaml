@@ -6,7 +6,7 @@ metadata:
 data:
   default.conf: |
     upstream backend_upstream {
-        server backend-svc:5001;
+        server backend-svc:80;
     }
 
     server {
