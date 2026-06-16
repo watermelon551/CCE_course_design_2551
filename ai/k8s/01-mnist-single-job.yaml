@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mnist-single
+  namespace: default
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app: mnist-single
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: swr-secret
+      containers:
+        - name: trainer
+          image: swr.cn-north-4.myhuaweicloud.com/swjtu2551/mnist-ddp:cpu
+          imagePullPolicy: Always
+          command: ["python", "/app/mnist_ddp_train.py"]
+          args:
+            - "--mode=single"
+            - "--epochs=1"
+            - "--batch-size=128"
+            - "--test-batch-size=512"
+            - "--data-dir=/opt/mnist-data"
+            - "--num-workers=0"
+            - "--torch-threads=1"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"

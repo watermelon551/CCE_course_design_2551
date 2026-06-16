@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mnist-ddp
+  namespace: default
+spec:
+  completions: 2
+  parallelism: 2
+  completionMode: Indexed
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app: mnist-ddp
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: swr-secret
+      containers:
+        - name: trainer
+          image: swr.cn-north-4.myhuaweicloud.com/swjtu2551/mnist-ddp:cpu
+          imagePullPolicy: Always
+          command: ["python", "/app/mnist_ddp_train.py"]
+          args:
+            - "--mode=ddp"
+            - "--epochs=1"
+            - "--batch-size=128"
+            - "--test-batch-size=512"
+            - "--data-dir=/opt/mnist-data"
+            - "--num-workers=0"
+            - "--torch-threads=1"
+          env:
+            - name: WORLD_SIZE
+              value: "2"
+            - name: MASTER_ADDR
+              value: "mnist-ddp-master.default.svc.cluster.local"
+            - name: MASTER_PORT
+              value: "29500"
+            - name: RANK
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['batch.kubernetes.io/job-completion-index']
+          ports:
+            - name: ddp
+              containerPort: 29500
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"

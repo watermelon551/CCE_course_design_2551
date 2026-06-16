@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir numpy pillow requests && \
+    pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu \
+      torch==2.3.1+cpu torchvision==0.18.1+cpu
+
+RUN python -c "from torchvision import datasets; datasets.MNIST('/opt/mnist-data', train=True, download=True); datasets.MNIST('/opt/mnist-data', train=False, download=True)"
+
+COPY ai/mnist_ddp_train.py /app/mnist_ddp_train.py
+
+CMD ["python", "/app/mnist_ddp_train.py", "--mode", "single"]
