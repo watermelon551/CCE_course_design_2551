@@ -70,8 +70,8 @@ q2 = spark.sql(
       rating_count,
       collect_count
     FROM movies
+    WHERE rating_count >= 5000
     ORDER BY rating_score DESC, rating_count DESC
-        HAVING rating_count >= 5000
     LIMIT 10
     """
 )
